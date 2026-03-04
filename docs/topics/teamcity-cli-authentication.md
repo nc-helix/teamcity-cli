@@ -240,6 +240,16 @@ set TEAMCITY_GUEST=1
 
 Environment variables take precedence over the configuration file and keyring.
 
+> If your TeamCity server is behind a gateway (for example Google IAP), you can inject headers into every CLI request with `TEAMCITY_HEADERS`.
+>
+> Example:
+>
+> `export TEAMCITY_HEADERS='X-Goog-IAP-JWT-Assertion: <jwt>'`
+>
+> Multiple headers are supported using `;` or new lines as separators.
+>
+{style="tip"}
+
 > To restrict the CLI to read-only operations (no builds triggered, no data modified), set `TEAMCITY_RO=1`. See [Read-only mode](teamcity-cli-scripting.md#Read-only+mode).
 >
 {style="tip"}

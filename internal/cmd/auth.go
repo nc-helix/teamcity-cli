@@ -58,6 +58,8 @@ For guest access (read-only, no token needed; must be enabled on the server):
 For CI/CD, use environment variables instead:
   export TEAMCITY_URL="https://teamcity.example.com"
   export TEAMCITY_TOKEN="your-access-token"
+  # Optional: add headers for IAP/proxy gateways
+  export TEAMCITY_HEADERS='X-Goog-IAP-JWT-Assertion: <jwt>'
   # Or for guest access:
   export TEAMCITY_URL="https://teamcity.example.com"
   export TEAMCITY_GUEST=1

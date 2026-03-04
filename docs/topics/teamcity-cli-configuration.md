@@ -21,6 +21,8 @@ servers:
   https://teamcity-prod.example.com:
     user: alice
     ro: true
+    headers:
+      X-Goog-IAP-JWT-Assertion: "<jwt>"
 aliases:
   rl: 'run list'
   rw: 'run view $1 --web'
@@ -62,7 +64,7 @@ The server URL used when no `TEAMCITY_URL` environment variable is set. Updated 
 </td>
 <td>
 
-A map of server URLs to their settings. Each entry stores the `user` field (username on that server) and optionally `guest: true` for guest access or `ro: true` for read-only mode. Tokens are stored in the system keyring, not in this file, unless `--insecure-storage` was used during login.
+A map of server URLs to their settings. Each entry stores the `user` field (username on that server) and optionally `guest: true` for guest access, `ro: true` for read-only mode, and `headers:` for extra HTTP headers (for example, when TeamCity is behind IAP/proxy gateways). Tokens are stored in the system keyring, not in this file, unless `--insecure-storage` was used during login.
 
 </td>
 </tr>
@@ -142,6 +144,18 @@ Set to `1` to use guest authentication (read-only, no token needed). The CLI mus
 <td>
 
 Set to `1`, `true`, or `yes` to enable read-only mode. When enabled, all non-GET API requests (POST, PUT, DELETE) are blocked, preventing any modifications to the TeamCity server. Useful for monitoring scripts and dashboards. Can also be set per server in the config file with `ro: true`.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`TEAMCITY_HEADERS`
+
+</td>
+<td>
+
+Extra headers applied to every request. Format: `"Key: Value;Other-Key: Other Value"` (use `;` or new lines to separate multiple headers). Useful when TeamCity is behind IAP or reverse proxies.
 
 </td>
 </tr>

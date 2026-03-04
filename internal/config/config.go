@@ -17,6 +17,7 @@ const (
 	EnvToken     = "TEAMCITY_TOKEN"
 	EnvGuestAuth = "TEAMCITY_GUEST"
 	EnvReadOnly  = "TEAMCITY_RO"
+	EnvHeaders   = "TEAMCITY_HEADERS"
 	EnvDSLDir    = "TEAMCITY_DSL_DIR"
 
 	DefaultDSLDirTeamCity = ".teamcity"
@@ -26,10 +27,11 @@ const (
 )
 
 type ServerConfig struct {
-	Token string `mapstructure:"token"`
-	User  string `mapstructure:"user"`
-	Guest bool   `mapstructure:"guest,omitempty"`
-	RO    bool   `mapstructure:"ro,omitempty"`
+	Token   string            `mapstructure:"token"`
+	User    string            `mapstructure:"user"`
+	Guest   bool              `mapstructure:"guest,omitempty"`
+	RO      bool              `mapstructure:"ro,omitempty"`
+	Headers map[string]string `mapstructure:"headers,omitempty"`
 }
 
 type Config struct {

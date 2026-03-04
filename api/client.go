@@ -47,6 +47,9 @@ type Client struct {
 	// Guest auth (no credentials, uses /guestAuth/ URL prefix)
 	guestAuth bool
 
+	// ExtraHeaders are sent with every request (e.g., for proxy/IAP gateways).
+	ExtraHeaders map[string]string
+
 	// Cached server info
 	serverInfo     *Server
 	serverInfoOnce sync.Once
@@ -122,6 +125,19 @@ func WithDebugFunc(f func(format string, args ...any)) ClientOption {
 func WithReadOnly(readOnly bool) ClientOption {
 	return func(c *Client) {
 		c.ReadOnly = readOnly
+	}
+}
+
+// WithHeaders configures extra headers to send with every request.
+func WithHeaders(headers map[string]string) ClientOption {
+	return func(c *Client) {
+		if len(headers) == 0 {
+			return
+		}
+		c.ExtraHeaders = make(map[string]string, len(headers))
+		for k, v := range headers {
+			c.ExtraHeaders[k] = v
+		}
 	}
 }
 
@@ -210,6 +226,12 @@ func (c *Client) setAuth(req *http.Request) {
 	}
 }
 
+func (c *Client) applyExtraHeaders(req *http.Request) {
+	for k, v := range c.ExtraHeaders {
+		req.Header.Set(k, v)
+	}
+}
+
 // ServerVersion returns cached server version info
 func (c *Client) ServerVersion() (*Server, error) {
 	c.serverInfoOnce.Do(func() {
@@ -280,6 +302,7 @@ func (c *Client) doRequestFull(method, path string, body io.Reader, contentType,
 	if body != nil {
 		req.Header.Set("Content-Type", contentType)
 	}
+	c.applyExtraHeaders(req)
 
 	c.debugLogRequest(req)
 
@@ -535,8 +558,9 @@ func (c *Client) RawRequest(method, path string, body io.Reader, headers map[str
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
+	c.applyExtraHeaders(req)
 
-	// Apply custom headers (can override defaults)
+	// Apply request-scoped custom headers (can override defaults/global headers)
 	for k, v := range headers {
 		req.Header.Set(k, v)
 	}

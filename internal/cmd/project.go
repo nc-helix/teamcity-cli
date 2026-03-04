@@ -800,6 +800,11 @@ func defaultGetClient() (api.ClientInterface, error) {
 
 	debugOpt := api.WithDebugFunc(output.Debug)
 	roOpt := api.WithReadOnly(config.IsReadOnly())
+	extraHeaders, err := config.GetExtraHeaders()
+	if err != nil {
+		return nil, err
+	}
+	headersOpt := api.WithHeaders(extraHeaders)
 
 	if config.IsGuestAuth() {
 		if serverURL == "" {
@@ -809,12 +814,12 @@ func defaultGetClient() (api.ClientInterface, error) {
 			)
 		}
 		output.Debug("Using guest authentication")
-		return api.NewGuestClient(serverURL, debugOpt, roOpt), nil
+		return api.NewGuestClient(serverURL, debugOpt, roOpt, headersOpt), nil
 	}
 
 	if serverURL != "" && token != "" {
 		warnInsecureHTTP(serverURL, "authentication token")
-		return api.NewClient(serverURL, token, debugOpt, roOpt), nil
+		return api.NewClient(serverURL, token, debugOpt, roOpt, headersOpt), nil
 	}
 
 	if buildAuth, ok := config.GetBuildAuth(); ok {
@@ -823,7 +828,7 @@ func defaultGetClient() (api.ClientInterface, error) {
 		}
 		output.Debug("Using build-level authentication")
 		warnInsecureHTTP(serverURL, "credentials")
-		return api.NewClientWithBasicAuth(serverURL, buildAuth.Username, buildAuth.Password, debugOpt, roOpt), nil
+		return api.NewClientWithBasicAuth(serverURL, buildAuth.Username, buildAuth.Password, debugOpt, roOpt, headersOpt), nil
 	}
 
 	return nil, notAuthenticatedError(serverURL)

@@ -651,6 +651,63 @@ func TestDebugLogging(T *testing.T) {
 	})
 }
 
+func TestExtraHeaders(T *testing.T) {
+	T.Parallel()
+
+	T.Run("applies global headers to standard requests", func(t *testing.T) {
+		t.Parallel()
+
+		var got string
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			got = r.Header.Get("X-IAP-Auth")
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(Server{VersionMajor: 2024, VersionMinor: 1})
+		}))
+		t.Cleanup(server.Close)
+
+		client := NewClient(server.URL, "token", WithHeaders(map[string]string{"X-IAP-Auth": "allow"}))
+		_, err := client.GetServer()
+		require.NoError(t, err)
+		assert.Equal(t, "allow", got)
+	})
+
+	T.Run("request-scoped headers override global headers in RawRequest", func(t *testing.T) {
+		t.Parallel()
+
+		var got string
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			got = r.Header.Get("X-IAP-Auth")
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{}`))
+		}))
+		t.Cleanup(server.Close)
+
+		client := NewClient(server.URL, "token", WithHeaders(map[string]string{"X-IAP-Auth": "global"}))
+		_, err := client.RawRequest("GET", "/app/rest/server", nil, map[string]string{"X-IAP-Auth": "local"})
+		require.NoError(t, err)
+		assert.Equal(t, "local", got)
+	})
+
+	T.Run("applies global headers to artifact download requests", func(t *testing.T) {
+		t.Parallel()
+
+		var got string
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			got = r.Header.Get("X-IAP-Auth")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("ok"))
+		}))
+		t.Cleanup(server.Close)
+
+		client := NewClient(server.URL, "token", WithHeaders(map[string]string{"X-IAP-Auth": "allow"}))
+		var buf bytes.Buffer
+		_, err := client.DownloadArtifactTo(t.Context(), "123", "test.txt", &buf)
+		require.NoError(t, err)
+		assert.Equal(t, "allow", got)
+	})
+}
+
 func TestApproveQueuedBuild(T *testing.T) {
 	T.Parallel()
 
