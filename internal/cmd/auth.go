@@ -139,7 +139,12 @@ func runAuthLogin(serverURL, token string, insecureStorage bool) error {
 	warnInsecureHTTP(serverURL, "authentication token")
 	output.Infof("Validating... ")
 
-	client := api.NewClient(serverURL, token, api.WithDebugFunc(output.Debug))
+	headerOpt, err := requestHeaderOption()
+	if err != nil {
+		return err
+	}
+
+	client := api.NewClient(serverURL, token, api.WithDebugFunc(output.Debug), headerOpt)
 	user, err := client.GetCurrentUser()
 	if err != nil {
 		output.Info("%s", output.Red("✗"))
@@ -191,7 +196,12 @@ func runAuthLoginGuest(serverURL, token string) error {
 	warnInsecureHTTP(serverURL, "guest access")
 	output.Infof("Validating guest access... ")
 
-	client := api.NewGuestClient(serverURL, api.WithDebugFunc(output.Debug))
+	headerOpt, err := requestHeaderOption()
+	if err != nil {
+		return err
+	}
+
+	client := api.NewGuestClient(serverURL, api.WithDebugFunc(output.Debug), headerOpt)
 	server, err := client.GetServer()
 	if err != nil {
 		output.Info("%s", output.Red("✗"))
@@ -252,20 +262,25 @@ func newAuthStatusCmd() *cobra.Command {
 }
 
 func runAuthStatus() error {
+	headerOpt, err := requestHeaderOption()
+	if err != nil {
+		return err
+	}
+
 	if envURL := os.Getenv(config.EnvServerURL); envURL != "" {
 		envURL = config.NormalizeURL(envURL)
 		if config.IsGuestAuth() {
-			showGuestAuthStatus(envURL, "")
+			showGuestAuthStatus(envURL, "", headerOpt)
 			return nil
 		}
 		if envToken := os.Getenv(config.EnvToken); envToken != "" {
-			showExplicitAuthStatus(envURL, envToken, "env", "")
+			showExplicitAuthStatus(envURL, envToken, "env", "", headerOpt)
 			return nil
 		}
 	}
 
 	if buildAuth, ok := config.GetBuildAuth(); ok {
-		showBuildAuthStatus(buildAuth)
+		showBuildAuthStatus(buildAuth, headerOpt)
 		return nil
 	}
 
@@ -284,13 +299,13 @@ func runAuthStatus() error {
 		}
 
 		if sc.Guest {
-			showGuestAuthStatus(serverURL, suffix)
+			showGuestAuthStatus(serverURL, suffix, headerOpt)
 		} else if token, src := config.GetTokenForServer(serverURL); token != "" {
-			showExplicitAuthStatus(serverURL, token, src, suffix)
+			showExplicitAuthStatus(serverURL, token, src, suffix, headerOpt)
 		} else {
 			fmt.Printf("%s %s%s\n", output.Red("✗"), serverURL, suffix)
 			fmt.Println("  Token is missing or could not be retrieved")
-			printLoginHint(serverURL)
+			printLoginHint(serverURL, headerOpt)
 		}
 		shown++
 	}
@@ -302,7 +317,7 @@ func runAuthStatus() error {
 			}
 			fmt.Printf("%s Commands in this directory target %s (from DSL settings)\n",
 				output.Yellow("!"), output.Cyan(dslURL))
-			printLoginHint(dslURL)
+			printLoginHint(dslURL, headerOpt)
 			shown++
 		}
 	}
@@ -333,9 +348,9 @@ func sortedServerURLs(cfg *config.Config) []string {
 }
 
 // printLoginHint probes guest access on serverURL and prints a targeted suggestion.
-func printLoginHint(serverURL string) {
+func printLoginHint(serverURL string, headerOpt api.ClientOption) {
 	loginCmd := output.Cyan("teamcity auth login --server " + serverURL)
-	if probeGuestAccess(serverURL) {
+	if probeGuestAccess(serverURL, headerOpt) {
 		fmt.Printf("  Run %s, or set %s for guest access\n", loginCmd, output.Cyan("TEAMCITY_GUEST=1"))
 	} else {
 		fmt.Printf("  Run %s to authenticate\n", loginCmd)
@@ -343,20 +358,20 @@ func printLoginHint(serverURL string) {
 }
 
 // probeGuestAccess checks whether the server at serverURL supports guest access.
-func probeGuestAccess(serverURL string) bool {
+func probeGuestAccess(serverURL string, headerOpt api.ClientOption) bool {
 	if serverURL == "" {
 		return false
 	}
-	guest := api.NewGuestClient(serverURL, api.WithDebugFunc(output.Debug))
+	guest := api.NewGuestClient(serverURL, api.WithDebugFunc(output.Debug), headerOpt)
 	_, err := guest.GetServer()
 	return err == nil
 }
 
 // notAuthenticatedError returns a not-authenticated error with a hint that
 // conditionally includes the guest access suggestion based on server support.
-func notAuthenticatedError(serverURL string) *tcerrors.UserError {
+func notAuthenticatedError(serverURL string, headerOpt api.ClientOption) *tcerrors.UserError {
 	err := tcerrors.NotAuthenticated()
-	if probeGuestAccess(serverURL) {
+	if probeGuestAccess(serverURL, headerOpt) {
 		err.Suggestion += ", or set TEAMCITY_GUEST=1 for guest access"
 	}
 	return err
@@ -375,9 +390,9 @@ func tokenSourceLabel(source string) string {
 	}
 }
 
-func showExplicitAuthStatus(serverURL, token, tokenSource, suffix string) {
+func showExplicitAuthStatus(serverURL, token, tokenSource, suffix string, headerOpt api.ClientOption) {
 	warnInsecureHTTP(serverURL, "authentication token")
-	client := api.NewClient(serverURL, token, api.WithDebugFunc(output.Debug))
+	client := api.NewClient(serverURL, token, api.WithDebugFunc(output.Debug), headerOpt)
 	user, err := client.GetCurrentUser()
 	if err != nil {
 		fmt.Printf("%s Server: %s%s\n", output.Red("✗"), serverURL, suffix)
@@ -400,8 +415,8 @@ func showExplicitAuthStatus(serverURL, token, tokenSource, suffix string) {
 	}
 }
 
-func showGuestAuthStatus(serverURL, suffix string) {
-	client := api.NewGuestClient(serverURL, api.WithDebugFunc(output.Debug))
+func showGuestAuthStatus(serverURL, suffix string, headerOpt api.ClientOption) {
+	client := api.NewGuestClient(serverURL, api.WithDebugFunc(output.Debug), headerOpt)
 	server, err := client.GetServer()
 	if err != nil {
 		fmt.Printf("%s Server: %s%s\n", output.Red("✗"), serverURL, suffix)
@@ -419,9 +434,9 @@ func showGuestAuthStatus(serverURL, suffix string) {
 	}
 }
 
-func showBuildAuthStatus(buildAuth *config.BuildAuth) {
+func showBuildAuthStatus(buildAuth *config.BuildAuth, headerOpt api.ClientOption) {
 	warnInsecureHTTP(buildAuth.ServerURL, "credentials")
-	client := api.NewClientWithBasicAuth(buildAuth.ServerURL, buildAuth.Username, buildAuth.Password, api.WithDebugFunc(output.Debug))
+	client := api.NewClientWithBasicAuth(buildAuth.ServerURL, buildAuth.Username, buildAuth.Password, api.WithDebugFunc(output.Debug), headerOpt)
 	server, err := client.GetServer()
 	if err != nil {
 		fmt.Printf("%s Server: %s\n", output.Red("✗"), buildAuth.ServerURL)

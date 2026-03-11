@@ -17,10 +17,11 @@ import (
 var (
 	Version = "dev"
 
-	NoColor bool
-	Quiet   bool
-	Verbose bool
-	NoInput bool
+	NoColor        bool
+	Quiet          bool
+	Verbose        bool
+	NoInput        bool
+	RequestHeaders []string
 )
 
 var rootCmd = &cobra.Command{
@@ -62,6 +63,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&Quiet, "quiet", "q", false, "Suppress non-essential output")
 	rootCmd.PersistentFlags().BoolVar(&Verbose, "verbose", false, "Show detailed output including debug info")
 	rootCmd.PersistentFlags().BoolVar(&NoInput, "no-input", false, "Disable interactive prompts")
+	rootCmd.PersistentFlags().StringArrayVarP(&RequestHeaders, "header", "H", nil, "Add a custom header to TeamCity requests (can be repeated)")
 
 	rootCmd.MarkFlagsMutuallyExclusive("quiet", "verbose")
 
@@ -178,10 +180,13 @@ func NewRootCmd() *RootCommand {
 		Version: Version,
 	}
 
+	RequestHeaders = nil
+
 	cmd.PersistentFlags().BoolVar(&noColor, "no-color", false, "Disable colored output")
 	cmd.PersistentFlags().BoolVarP(&quiet, "quiet", "q", false, "Suppress non-essential output")
 	cmd.PersistentFlags().BoolVar(&verbose, "verbose", false, "Show detailed output including debug info")
 	cmd.PersistentFlags().BoolVar(&noInput, "no-input", false, "Disable interactive prompts")
+	cmd.PersistentFlags().StringArrayVarP(&RequestHeaders, "header", "H", nil, "Add a custom header to TeamCity requests (can be repeated)")
 
 	cmd.AddCommand(newAuthCmd())
 	cmd.AddCommand(newProjectCmd())

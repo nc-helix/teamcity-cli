@@ -27,10 +27,11 @@ var sensitiveHeaders = map[string]bool{
 
 // Client represents a TeamCity API client
 type Client struct {
-	BaseURL    string
-	Token      string
-	APIVersion string // Optional: pin to a specific API version (e.g., "2020.1")
-	HTTPClient *http.Client
+	BaseURL        string
+	Token          string
+	APIVersion     string // Optional: pin to a specific API version (e.g., "2020.1")
+	HTTPClient     *http.Client
+	DefaultHeaders http.Header
 
 	// DebugFunc, when set, receives debug log messages for HTTP requests/responses.
 	// Use WithDebugFunc to configure.
@@ -125,6 +126,13 @@ func WithReadOnly(readOnly bool) ClientOption {
 	}
 }
 
+// WithDefaultHeaders sets headers to include with every TeamCity request.
+func WithDefaultHeaders(headers http.Header) ClientOption {
+	return func(c *Client) {
+		c.DefaultHeaders = headers.Clone()
+	}
+}
+
 // ErrReadOnly is returned when a non-GET request is attempted in read-only mode.
 var ErrReadOnly = errors.New("read-only mode: write operations are not allowed")
 
@@ -210,6 +218,30 @@ func (c *Client) setAuth(req *http.Request) {
 	}
 }
 
+func setHeaderValues(headers http.Header, name string, values []string) {
+	headers.Del(name)
+	for _, value := range values {
+		headers.Add(name, value)
+	}
+}
+
+func (c *Client) applyHeaders(req *http.Request, accept, contentType string, hasBody bool, extra map[string]string) {
+	c.setAuth(req)
+	if accept != "" {
+		req.Header.Set("Accept", accept)
+	}
+	if hasBody && contentType != "" {
+		req.Header.Set("Content-Type", contentType)
+	}
+
+	for name, values := range c.DefaultHeaders {
+		setHeaderValues(req.Header, name, values)
+	}
+	for name, value := range extra {
+		req.Header.Set(name, value)
+	}
+}
+
 // ServerVersion returns cached server version info
 func (c *Client) ServerVersion() (*Server, error) {
 	c.serverInfoOnce.Do(func() {
@@ -275,11 +307,7 @@ func (c *Client) doRequestFull(method, path string, body io.Reader, contentType,
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	c.setAuth(req)
-	req.Header.Set("Accept", accept)
-	if body != nil {
-		req.Header.Set("Content-Type", contentType)
-	}
+	c.applyHeaders(req, accept, contentType, body != nil, nil)
 
 	c.debugLogRequest(req)
 
@@ -530,16 +558,7 @@ func (c *Client) RawRequest(method, path string, body io.Reader, headers map[str
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	c.setAuth(req)
-	req.Header.Set("Accept", "application/json")
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
-
-	// Apply custom headers (can override defaults)
-	for k, v := range headers {
-		req.Header.Set(k, v)
-	}
+	c.applyHeaders(req, "application/json", "application/json", body != nil, headers)
 
 	c.debugLogRequest(req)
 

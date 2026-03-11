@@ -801,6 +801,11 @@ func defaultGetClient() (api.ClientInterface, error) {
 	debugOpt := api.WithDebugFunc(output.Debug)
 	roOpt := api.WithReadOnly(config.IsReadOnly())
 
+	headerOpt, err := requestHeaderOption()
+	if err != nil {
+		return nil, err
+	}
+
 	if config.IsGuestAuth() {
 		if serverURL == "" {
 			return nil, tcerrors.WithSuggestion(
@@ -809,12 +814,12 @@ func defaultGetClient() (api.ClientInterface, error) {
 			)
 		}
 		output.Debug("Using guest authentication")
-		return api.NewGuestClient(serverURL, debugOpt, roOpt), nil
+		return api.NewGuestClient(serverURL, debugOpt, roOpt, headerOpt), nil
 	}
 
 	if serverURL != "" && token != "" {
 		warnInsecureHTTP(serverURL, "authentication token")
-		return api.NewClient(serverURL, token, debugOpt, roOpt), nil
+		return api.NewClient(serverURL, token, debugOpt, roOpt, headerOpt), nil
 	}
 
 	if buildAuth, ok := config.GetBuildAuth(); ok {
@@ -823,10 +828,10 @@ func defaultGetClient() (api.ClientInterface, error) {
 		}
 		output.Debug("Using build-level authentication")
 		warnInsecureHTTP(serverURL, "credentials")
-		return api.NewClientWithBasicAuth(serverURL, buildAuth.Username, buildAuth.Password, debugOpt, roOpt), nil
+		return api.NewClientWithBasicAuth(serverURL, buildAuth.Username, buildAuth.Password, debugOpt, roOpt, headerOpt), nil
 	}
 
-	return nil, notAuthenticatedError(serverURL)
+	return nil, notAuthenticatedError(serverURL, headerOpt)
 }
 
 func newProjectTreeCmd() *cobra.Command {

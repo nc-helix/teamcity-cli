@@ -167,6 +167,67 @@ func TestClientOptions(T *testing.T) {
 	assert.Equal(T, 60*time.Second, client.HTTPClient.Timeout)
 }
 
+func TestDefaultHeaders(T *testing.T) {
+	T.Parallel()
+
+	T.Run("applies to standard requests", func(t *testing.T) {
+		t.Parallel()
+
+		client := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "custom-value", r.Header.Get("X-Custom"))
+			assert.Equal(t, "application/xml", r.Header.Get("Accept"))
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(Server{})
+		})
+		client = NewClient(client.BaseURL, "test-token", WithDefaultHeaders(http.Header{
+			"X-Custom": {"custom-value"},
+			"Accept":   {"application/xml"},
+		}))
+
+		_, err := client.GetServer()
+		require.NoError(t, err)
+	})
+
+	T.Run("applies to raw requests and preserves explicit overrides", func(t *testing.T) {
+		t.Parallel()
+
+		client := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "default-value", r.Header.Get("X-Default"))
+			assert.Equal(t, "override-value", r.Header.Get("X-Override"))
+			w.WriteHeader(http.StatusOK)
+		})
+		client = NewClient(client.BaseURL, "test-token", WithDefaultHeaders(http.Header{
+			"X-Default":  {"default-value"},
+			"X-Override": {"default-value"},
+		}))
+
+		_, err := client.RawRequest("GET", "/api/test", nil, map[string]string{"X-Override": "override-value"})
+		require.NoError(t, err)
+	})
+
+	T.Run("applies to artifact downloads", func(t *testing.T) {
+		t.Parallel()
+
+		var customHeader string
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/app/rest/builds/id:123" {
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(Build{ID: 123})
+				return
+			}
+			customHeader = r.Header.Get("X-Custom")
+			w.WriteHeader(http.StatusOK)
+		}))
+		t.Cleanup(server.Close)
+
+		client := NewClient(server.URL, "test-token", WithDefaultHeaders(http.Header{"X-Custom": {"download-value"}}))
+		var buf bytes.Buffer
+		_, err := client.DownloadArtifactTo(t.Context(), "123", "artifact.txt", &buf)
+		require.NoError(t, err)
+		assert.Equal(t, "download-value", customHeader)
+	})
+}
+
 func TestCheckVersion(T *testing.T) {
 	T.Parallel()
 

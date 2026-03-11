@@ -154,8 +154,7 @@ func (c *Client) RebootAgent(ctx context.Context, id int, afterBuild bool) error
 		return fmt.Errorf("failed to create request: %w", err)
 	}
 
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	c.setAuth(req)
+	c.applyHeaders(req, "", "application/x-www-form-urlencoded", true, nil)
 
 	c.debugLogRequest(req)
 

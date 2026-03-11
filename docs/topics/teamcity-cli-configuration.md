@@ -292,6 +292,18 @@ Disable interactive prompts. The CLI uses sensible defaults when a prompt would 
 
 </td>
 </tr>
+<tr>
+<td>
+
+`-H`, `--header`
+
+</td>
+<td>
+
+Add a custom HTTP header to TeamCity requests. Can be repeated.
+
+</td>
+</tr>
 </table>
 
 ## Shell completion

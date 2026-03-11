@@ -389,7 +389,7 @@ func (c *Client) DownloadArtifactTo(ctx context.Context, buildID, artifactPath s
 	if err != nil {
 		return 0, err
 	}
-	c.setAuth(req)
+	c.applyHeaders(req, "", "", false, nil)
 
 	client := &http.Client{Transport: c.HTTPClient.Transport}
 	resp, err := client.Do(req)

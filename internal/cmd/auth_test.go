@@ -239,6 +239,50 @@ func TestGuestAuthTakesPriorityOverToken(T *testing.T) {
 	assert.True(T, usedGuestPath, "guest auth should use /guestAuth/ path")
 }
 
+func TestAuthLoginWithCustomHeaders(T *testing.T) {
+	ts := NewTestServer(T)
+	var customHeader string
+
+	ts.Handle("GET /app/rest/users/current", func(w http.ResponseWriter, r *http.Request) {
+		customHeader = r.Header.Get("X-Custom")
+		JSON(w, api.User{ID: 1, Username: "admin", Name: "Administrator"})
+	})
+
+	T.Setenv("HOME", T.TempDir())
+	T.Setenv("TEAMCITY_URL", "")
+	T.Setenv("TEAMCITY_TOKEN", "")
+	T.Setenv("TEAMCITY_GUEST", "")
+	T.Setenv("TC_INSECURE_SKIP_WARN", "1")
+	config.ResetDSLCache()
+	config.ResetForTest()
+	config.Init()
+
+	runCmd(T, "auth", "login", "-s", ts.URL, "-t", "test-token", "--insecure-storage", "-H", "X-Custom: login-value")
+	assert.Equal(T, "login-value", customHeader)
+}
+
+func TestAuthLoginGuestWithCustomHeaders(T *testing.T) {
+	ts := NewTestServer(T)
+	var customHeader string
+
+	ts.Handle("GET /guestAuth/app/rest/server", func(w http.ResponseWriter, r *http.Request) {
+		customHeader = r.Header.Get("X-Custom")
+		JSON(w, api.Server{VersionMajor: 2024, VersionMinor: 12, BuildNumber: "176523"})
+	})
+
+	T.Setenv("HOME", T.TempDir())
+	T.Setenv("TEAMCITY_URL", "")
+	T.Setenv("TEAMCITY_TOKEN", "")
+	T.Setenv("TEAMCITY_GUEST", "")
+	T.Setenv("TC_INSECURE_SKIP_WARN", "1")
+	config.ResetDSLCache()
+	config.ResetForTest()
+	config.Init()
+
+	runCmd(T, "auth", "login", "-s", ts.URL, "--guest", "-H", "X-Custom: guest-value")
+	assert.Equal(T, "guest-value", customHeader)
+}
+
 // setupConfigAuthStatus clears env overrides and resets config so tests
 // exercise the config-based path in runAuthStatus.
 func setupConfigAuthStatus(t *testing.T, ts *TestServer) {

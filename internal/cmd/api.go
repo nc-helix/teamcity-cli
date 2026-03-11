@@ -23,7 +23,6 @@ var knownArrayKeys = []string{
 
 type apiOptions struct {
 	method   string
-	headers  []string
 	fields   []string
 	input    string
 	include  bool
@@ -67,7 +66,6 @@ This command is useful for:
 	}
 
 	cmd.Flags().StringVarP(&opts.method, "method", "X", "GET", "HTTP method to use")
-	cmd.Flags().StringArrayVarP(&opts.headers, "header", "H", nil, "Add a custom header (can be repeated)")
 	cmd.Flags().StringArrayVarP(&opts.fields, "field", "f", nil, "Add a body field as key=value (builds JSON object)")
 	cmd.Flags().StringVar(&opts.input, "input", "", "Read request body from file (use - for stdin)")
 	cmd.Flags().BoolVarP(&opts.include, "include", "i", false, "Include response headers in output")
@@ -92,15 +90,6 @@ func runAPI(endpoint string, opts *apiOptions) error {
 	client, err := getClient()
 	if err != nil {
 		return err
-	}
-
-	headers := make(map[string]string)
-	for _, h := range opts.headers {
-		parts := strings.SplitN(h, ":", 2)
-		if len(parts) != 2 {
-			return fmt.Errorf("invalid header format %q (expected 'Key: Value')", h)
-		}
-		headers[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
 	}
 
 	var body io.Reader
@@ -147,10 +136,10 @@ func runAPI(endpoint string, opts *apiOptions) error {
 	}
 
 	if opts.paginate {
-		return runAPIPaginated(client, endpoint, headers, opts)
+		return runAPIPaginated(client, endpoint, nil, opts)
 	}
 
-	resp, err := client.RawRequest(opts.method, endpoint, body, headers)
+	resp, err := client.RawRequest(opts.method, endpoint, body, nil)
 	if err != nil {
 		return err
 	}

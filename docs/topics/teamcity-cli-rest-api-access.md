@@ -69,6 +69,12 @@ Add custom headers with `-H`:
 teamcity api /app/rest/builds -H "Accept: application/xml"
 ```
 
+The `-H`, `--header` flag is inherited by other TeamCity commands as well, so you can apply the same header set to normal CLI operations:
+
+```Shell
+teamcity run list -H "X-Tenant: acme"
+```
+
 ## Response handling
 
 ### Include response headers

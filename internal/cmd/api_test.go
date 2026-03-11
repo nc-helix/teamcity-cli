@@ -20,6 +20,8 @@ import (
 
 // createTestRootCmd creates a fresh root command with the api subcommand for testing.
 func createTestRootCmd() *cobra.Command {
+	RequestHeaders = nil
+
 	rootCmd := &cobra.Command{
 		Use: "teamcity",
 	}
@@ -27,6 +29,7 @@ func createTestRootCmd() *cobra.Command {
 	rootCmd.PersistentFlags().BoolP("quiet", "q", false, "")
 	rootCmd.PersistentFlags().Bool("verbose", false, "")
 	rootCmd.PersistentFlags().Bool("no-input", false, "")
+	rootCmd.PersistentFlags().StringArrayVarP(&RequestHeaders, "header", "H", nil, "")
 	rootCmd.AddCommand(newAPICmd())
 	return rootCmd
 }
